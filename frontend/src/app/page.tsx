@@ -1,5 +1,8 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { HexColorPicker } from "react-colorful";
+import { motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 
 const COLORS = [
   { name: "Black", value: "#000000" },
@@ -7,7 +10,7 @@ const COLORS = [
   { name: "Orange", value: "#fb8c00" },
   { name: "Green", value: "#43a047" },
   { name: "Blue", value: "#1e88e5" },
-  { name: "White", value: "#ffffff" },
+  // Removed white color
 ];
 
 const FORMATS = [
@@ -40,6 +43,9 @@ export default function Home() {
   const [copied, setCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const downloadRef = useRef<HTMLAnchorElement>(null);
+  const [showColorWheel, setShowColorWheel] = useState(false);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+  const [urlError, setUrlError] = useState(false);
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
@@ -60,7 +66,7 @@ export default function Home() {
       try {
         new URL(debouncedUrl);
       } catch (err) {
-        setError("Invalid destination link");
+        setError("Invalid destination url");
         setQrImage(null);
         setQrBlob(null);
         setSvgText(null);
@@ -125,6 +131,11 @@ export default function Home() {
   }, [debouncedUrl, color, format]);
 
   const handleDownload = () => {
+    if (!url || !isValidUrl(url)) {
+      setUrlError(true);
+      urlInputRef.current?.focus();
+      return;
+    }
     if (qrBlob && downloadRef.current) {
       const url = URL.createObjectURL(qrBlob);
       downloadRef.current.href = url;
@@ -135,6 +146,11 @@ export default function Home() {
   };
 
   const handleCopyLink = async () => {
+    if (!url || !isValidUrl(url)) {
+      setUrlError(true);
+      urlInputRef.current?.focus();
+      return;
+    }
     console.log('Copying shortId:', shortId);
     if (shortId) {
       try {
@@ -149,6 +165,15 @@ export default function Home() {
       console.log('No shortId available to copy');
     }
   };
+
+  function isValidUrl(str: string) {
+    try {
+      new URL(str);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] font-sans">
@@ -187,41 +212,115 @@ export default function Home() {
           <label className="font-medium text-gray-700 tracking-normal">Enter destination URL</label>
           <input
             type="url"
-            className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-black text-black bg-[#fafafa]"
+            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 text-black bg-[#fafafa] ${urlError && (!url || !isValidUrl(url)) ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-black'}`}
             placeholder="https://example.com"
             value={url}
-            onChange={e => setUrl(e.target.value)}
+            onChange={e => { setUrl(e.target.value); setUrlError(false); }}
             required
+            ref={urlInputRef}
           />
+          
           <label className="font-medium text-gray-700 tracking-w mt-3">Choose color</label>
           <div className="flex gap-3 mb-2 w-full justify-between">
             {COLORS.map((c) => (
               <button
                 type="button"
                 key={c.value}
-                className={`h-10 w-10 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer ${color === c.value ? 'border-black scale-110' : c.value === '#ffffff' ? 'border-gray-300' : 'border-transparent'}`}
-                style={{ background: c.value }}
+                className="h-12 w-12 flex items-center justify-center transition-all cursor-pointer bg-transparent p-0 border-none"
+                onClick={() => { setColor(c.value); setCustomColor(""); setShowColorWheel(false); }}
                 aria-label={c.name}
-                onClick={() => { setColor(c.value); setCustomColor(""); }}
-              />
+                style={{ background: 'transparent' }}
+              >
+                {color === c.value ? (
+                  <span className="block h-10 w-10 rounded-full flex items-center justify-center" style={{ background: c.value }}>
+                    <motion.span
+                      className="block h-8 w-8 rounded-full border-4 border-white"
+                      style={{ background: c.value }}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20, ease: "easeOut" }}
+                    />
+                  </span>
+                ) : (
+                  <span className="block h-10 w-10 rounded-full" style={{ background: c.value }} />
+                )}
+              </button>
             ))}
-            {/* Custom color picker */}
-            <label className="h-10 w-10 rounded-full border-2 border border-gray-300 flex items-center justify-center cursor-pointer transition-all" style={{ background: customColor || '#fff' }}>
-              <input
-                type="color"
-                value={customColor || "#000000"}
-                onChange={e => { setCustomColor(e.target.value); setColor(e.target.value); }}
-                className="opacity-0 w-0 h-0 absolute cursor-pointer"
+            {/* Custom color wheel picker */}
+            <div className="relative flex items-center justify-center">
+              <button
+                type="button"
+                className={`h-12 w-12 flex items-center justify-center transition-all cursor-pointer bg-transparent p-0 border-none`}
                 aria-label="Custom color"
-              />
-              <span className="w-5 h-5 rounded-full border border-gray-400 flex items-center justify-center" style={{ background: customColor || '#fff' }}>
-                {/* Color wheel icon */}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" strokeWidth="1.5" stroke="currentColor">
-  <path strokeLinecap="round" strokeLinejoin="round" d="m15 11.25 1.5 1.5.75-.75V8.758l2.276-.61a3 3 0 1 0-3.675-3.675l-.61 2.277H12l-.75.75 1.5 1.5M15 11.25l-8.47 8.47c-.34.34-.8.53-1.28.53s-.94.19-1.28.53l-.97.97-.75-.75.97-.97c.34-.34.53-.8.53-1.28s.19-.94.53-1.28L12.75 9M15 11.25 12.75 9" />
-</svg>
-
-              </span>
-            </label>
+                style={{ background: 'transparent' }}
+                onClick={() => setShowColorWheel(v => !v)}
+              >
+                {color === customColor && customColor ? (
+                  (customColor.toLowerCase() === '#fff' || customColor.toLowerCase() === '#ffffff') ? (
+                    // White selected: add gray-50 background for balance
+                    <span className="block h-10 w-10 rounded-full flex items-center justify-center bg-gray-50">
+                      <motion.span
+                        className="block h-8 w-8 rounded-full border-4"
+                        style={{ background: customColor, borderColor: '#e5e7eb' }}
+                        initial={{ scale: 0.8 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20, ease: "easeOut" }}
+                      />
+                    </span>
+                  ) : (
+                    // Other custom color selected
+                    <span className="block h-10 w-10 rounded-full flex items-center justify-center" style={{ background: customColor }}>
+                      <motion.span
+                        className="block h-8 w-8 rounded-full border-4 border-white"
+                        style={{ background: customColor }}
+                        initial={{ scale: 0.8 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 20, ease: "easeOut" }}
+                      />
+                    </span>
+                  )
+                ) : (
+                  // Not selected
+                  <span
+                    className="block h-10 w-10 rounded-full"
+                    style={{
+                      background: customColor
+                        ? customColor
+                        : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
+                    }}
+                  />
+                )}
+              </button>
+              {showColorWheel && (
+                <div className="absolute z-50 top-12 left-1/2 -translate-x-1/2 bg-white p-3 rounded-xl shadow-lg border border-black/5 flex flex-col items-center min-w-[220px] w-64">
+                  <HexColorPicker
+                    color={customColor || "#000000"}
+                    onChange={c => {
+                      setCustomColor(c);
+                      setColor(c);
+                    }}
+                  />
+                  <input
+                    type="text"
+                    className="mt-3 mb-2 w-full rounded-md border border-gray-300 px-2 py-1 text-center text-base font-mono focus:outline-none focus:ring-2 focus:ring-black"
+                    value={customColor || "#000000"}
+                    onChange={e => {
+                      let val = e.target.value;
+                      if (!val.startsWith('#')) val = '#' + val.replace(/[^0-9a-fA-F]/g, '');
+                      setCustomColor(val);
+                      setColor(val);
+                    }}
+                    maxLength={7}
+                  />
+                  <button
+                    className="w-full mt-1 px-3 py-2 bg-black text-white rounded-lg font-semibold text-base hover:bg-neutral-800 transition-all cursor-pointer"
+                    onClick={() => setShowColorWheel(false)}
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <label className="font-medium text-gray-700 tracking-w mt-3">Format</label>
           <div className="flex gap-3 mb-2">
@@ -248,63 +347,140 @@ export default function Home() {
         </form>
         <div className="bg-[#fafafa] rounded-xl p-4 flex flex-col items-center border border-gray-200 min-h-[180px] justify-center" style={{height: 180}}>
           {loading ? (
-            <span className="text-gray-400">Generating...</span>
+            <span className="text-gray-50">Generating...</span>
           ) : error ? (
-            <span className="text-red-500 text-lg">{error}</span>
-          ) : format === 'svg' && svgText ? (
-            <div
-              className="w-40 h-40 flex items-center justify-center overflow-hidden"
-              style={{ minWidth: 160, minHeight: 160, maxWidth: 160, maxHeight: 160 }}
-              dangerouslySetInnerHTML={{
-                __html: svgText.replace(
-                  /<svg([^>]*)>/,
-                  '<svg$1 width="160" height="160" style="width:160px;height:160px;" preserveAspectRatio="xMidYMid meet">'
-                ),
-              }}
-            />
+            <motion.span
+              className="text-red-500 text-lg flex items-center gap-2 justify-center"
+              initial={{ rotate: 0 }}
+              animate={{ rotate: [0, -3, 3, -2, 2, -1, 1, 0] }}
+              transition={{ duration: 0.6, ease: "easeInOut" }}
+            >
+              {/* Warning icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              {error}
+            </motion.span>
           ) : (
-            qrImage && <img src={qrImage} alt="Generated QR Code" className="w-40 h-40" />
-          )}
-          {!qrImage && !svgText && !loading && !error && (
-            <span className="text-gray-400 flex items-center justify-center h-full w-full text-center text-lg">QR code preview</span>
+            <AnimatePresence mode="wait">
+              {(format === 'svg' && svgText) ? (
+                <motion.div
+                  key={svgText + color + format + debouncedUrl}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.22, ease: "linear" }}
+                  className="w-40 h-40 flex items-center justify-center overflow-hidden"
+                  style={{ minWidth: 160, minHeight: 160, maxWidth: 160, maxHeight: 160 }}
+                >
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: svgText.replace(
+                        /<svg([^>]*)>/,
+                        '<svg$1 width="160" height="160" style="width:160px;height:160px;" preserveAspectRatio="xMidYMid meet">'
+                      ),
+                    }}
+                    className="w-full h-full"
+                  />
+                </motion.div>
+              ) : qrImage ? (
+                <motion.img
+                  key={qrImage + color + format + debouncedUrl}
+                  src={qrImage}
+                  alt="Generated QR Code"
+                  className="w-40 h-40"
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.22, ease: "linear" }}
+                />
+              ) : (
+                !loading && !error && (
+                  <span className="text-gray-400 flex items-center justify-center h-full w-full text-center text-lg">QR code preview</span>
+                )
+              )}
+            </AnimatePresence>
           )}
         </div>
         <div className="flex gap-4 mt-2">
-          <button
+          <motion.button
             type="button"
             onClick={handleCopyLink}
-            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-black bg-gray-100 text-black hover:bg-gray-200"
+            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer bg-gray-100 text-black hover:bg-gray-200"
             style={{ minHeight: 48 }}
-            disabled={!shortId}
+            // disabled={!shortId}
             title="Save this ID to update the destination later without regenerating the QR code"
+            whileTap={{ scale: 0.98 }}
           >
-            {/* Clipboard icon */}
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
-</svg>
-
-            Copy QR ID
-          </button>
-          <button
+            <span className="relative w-5 h-5 flex items-center justify-center">
+              <AnimatePresence mode="wait" initial={false}>
+                {!showToast ? (
+                  <motion.span
+                    key="clipboard"
+                    initial={{ opacity: 1, scale: 1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    transition={{ duration: 0.18, ease: "easeInOut" }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    {/* Clipboard icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                    </svg>
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="check"
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ duration: 0.12, ease: "easeInOut" }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    {/* Check icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                    </svg>
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </span>
+            <span>
+              {showToast ? "Copy QR ID" : "Copy QR ID"}
+            </span>
+          </motion.button>
+          <motion.button
             onClick={handleDownload}
-            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer  bg-black text-white hover:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-black"
+            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer  bg-black text-white hover:bg-neutral-800"
             style={{  minHeight: 48 }}
-            disabled={!qrBlob}
+            // disabled={!qrBlob}
+            whileTap={{ scale: 0.98 }}
           >
             {/* Download icon */}
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
             </svg>
             Download
-          </button>
+          </motion.button>
         </div>
         
         {/* Toast Notification */}
-        {showToast && (
-          <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in slide-in-from-right duration-300">
-            QR ID copied!
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {showToast && (
+            <motion.div
+              key="toast"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0, transition: { duration: 0.2, ease: 'easeInOut' } }}
+              exit={{ opacity: 0, x: 16, transition: { duration: 0.2, ease: 'easeInOut' } }}
+              className="fixed top-8 right-8 bg-black text-white px-5 py-2 rounded-full shadow-lg z-50 flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+              </svg>
+              <span className="font-medium">Copied</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
         <a ref={downloadRef} style={{ display: 'none' }} />
       </div>
