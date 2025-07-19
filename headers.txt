@@ -1,0 +1,10 @@
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Access-Control-Allow-Origin: *
+Content-Type: image/png
+Content-Length: 2509
+ETag: W/"9cd-8NkBKMWjkRuh3wxoqGkRjNuNyPI"
+Date: Sat, 19 Jul 2025 03:38:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
