@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: any
 ) {
   const { shortId } = params;
   try {
@@ -30,7 +30,7 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { shortId: string } }
+  { params }: any
 ) {
   const { shortId } = params;
   const { destination_url, color, format } = await req.json();
