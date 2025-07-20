@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { shortId: string } }
+  context: { params: Record<string, string> }
 ) {
-  const { shortId } = params;
+  const { shortId } = context.params;
   try {
     const qrCode = await prisma.qRCode.findUnique({ where: { shortId } });
     if (!qrCode) {
