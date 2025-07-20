@@ -60,11 +60,13 @@ export default function Home() {
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [urlError, setUrlError] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showShimmer, setShowShimmer] = useState(false);
 
   // Manage QR states
   const [manageShortId, setManageShortId] = useState("");
   const [newUrl, setNewUrl] = useState("");
-  const [manageLoading, setManageLoading] = useState(false);
+  const [findLoading, setFindLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [manageMessage, setManageMessage] = useState("");
   const [qrInfo, setQrInfo] = useState<any>(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -199,8 +201,7 @@ export default function Home() {
 
   const handleGetQRInfo = async () => {
     if (!manageShortId) return;
-    
-    setManageLoading(true);
+    setFindLoading(true);
     setManageMessage("");
     try {
       const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`);
@@ -215,14 +216,13 @@ export default function Home() {
       setManageMessage("Error fetching QR code info.");
       setQrInfo(null);
     } finally {
-      setManageLoading(false);
+      setFindLoading(false);
     }
   };
 
   const handleUpdateDestination = async () => {
     if (!manageShortId || !newUrl) return;
-    
-    setManageLoading(true);
+    setUpdateLoading(true);
     setManageMessage("");
     try {
       const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`, {
@@ -230,18 +230,18 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ destination_url: newUrl })
       });
-      
       if (res.ok) {
         const data = await res.json();
         setManageMessage("Destination updated");
-        // Update the qrInfo with the new data so the "Current" field reflects the change
         setQrInfo({
           ...qrInfo,
           originalUrl: newUrl
         });
         setNewUrl("");
         setShowSuccessAnimation(true);
+        setShowShimmer(true);
         setTimeout(() => setShowSuccessAnimation(false), 3000);
+        setTimeout(() => setShowShimmer(false), 2000);
       } else {
         const errorData = await res.json();
         setManageMessage(`❌ Error: ${errorData.error}`);
@@ -249,7 +249,7 @@ export default function Home() {
     } catch (err) {
       setManageMessage("Error updating destination.");
     } finally {
-      setManageLoading(false);
+      setUpdateLoading(false);
     }
   };
 
@@ -279,7 +279,7 @@ export default function Home() {
                 ? 'border-red-500 focus:ring-red-500'
                 : 'border-neutral-200 focus:ring-black'
             }`}
-            placeholder="https://example.com"
+            
             value={url}
             onChange={e => { setUrl(e.target.value); setUrlError(false); }}
             onFocus={() => { if (urlError) setUrlError(false); }}
@@ -590,11 +590,11 @@ export default function Home() {
                 <motion.button
                   type="button"
                   onClick={handleGetQRInfo}
-                  disabled={manageLoading || !manageShortId}
+                  disabled={findLoading || !manageShortId}
                   whileTap={{ scale: 0.98 }}
                   className="w-[85px] h-[42px] py-2 rounded-lg bg-neutral-100 text-black font-medium hover:bg-neutral-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {manageLoading ? "Loading..." : "Find"}
+                  Find
                 </motion.button>
               </div>
 
@@ -631,7 +631,7 @@ export default function Home() {
                       <div className="relative">
                       <input
                         type="url"
-                        className="w-full text-sm rounded-t-lg rounded-b-none px-3 py-1 text-neutral-500 bg-neutral-50 border border-transparent focus:outline-none"
+                        className={`w-full rounded-lg px-3 text-sm text-neutral-500 bg-neutral-50 border border-transparent focus:outline-none${showShimmer ? ' shimmer' : ''}`}
                         value={qrInfo.originalUrl}
                         readOnly
                       />
@@ -642,11 +642,14 @@ export default function Home() {
                     
                     <input
                       type="url"
-                      className="w-full rounded-lg px-3 py-4 text-black border border-neutral-200 focus:outline-neutral-950"
+                      className={`w-full rounded-lg px-3 py-2 text-black border focus:outline-neutral-950 border shadow-xs ${newUrl && !isValidUrl(newUrl) ? 'border-red-500' : 'border-neutral-200'}`}
                       placeholder="Enter new URL"
                       value={newUrl}
                       onChange={e => setNewUrl(e.target.value)}
                     />
+                    {newUrl && !isValidUrl(newUrl) && (
+                      <div className="text-red-500 text-sm mt-1">Please enter a valid URL</div>
+                    )}
                     </div>
                     
                     {showSuccessAnimation ? (
@@ -661,10 +664,10 @@ export default function Home() {
                       <motion.button
                       whileTap={{ scale: 0.98 }}
                         onClick={handleUpdateDestination}
-                        disabled={manageLoading || !newUrl}
+                        disabled={updateLoading || !newUrl || (!!newUrl && !isValidUrl(newUrl))}
                         className="mt-6 w-full h-[48px] bg-black font-semibold text-white rounded-xl hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {manageLoading ? "Updating..." : "Update"}
+                        {updateLoading ? "Updating..." : "Update"}
                       </motion.button>
                     )}
                   </div>

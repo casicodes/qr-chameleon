@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.shimmer {
+  line-height: 1.3;
+  font-weight: 400;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, #737373 0%, #737373 80%, #000000 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 1s 1 ease-in-out;
+}
+
+@keyframes shimmer {
+  100% {
+    background-position: -200% 0;
+  }
+}
