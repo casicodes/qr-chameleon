@@ -103,7 +103,7 @@ export default function Home() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("http://localhost:4000/api/qr", {
+        const res = await fetch("/api/qr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ destination_url: debouncedUrl, format, color }),
@@ -204,7 +204,7 @@ export default function Home() {
     setFindLoading(true);
     setManageMessage("");
     try {
-      const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`);
+      const res = await fetch(`/api/qr/${manageShortId}`);
       if (res.ok) {
         const data = await res.json();
         setQrInfo(data);
@@ -225,7 +225,7 @@ export default function Home() {
     setUpdateLoading(true);
     setManageMessage("");
     try {
-      const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`, {
+      const res = await fetch(`/api/qr/${manageShortId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ destination_url: newUrl })
