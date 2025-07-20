@@ -3,6 +3,19 @@ import { useState, useRef, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
 import { motion } from "framer-motion";
 import { AnimatePresence } from "framer-motion";
+import { Inter } from "next/font/google";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+
+const inter = Inter({ subsets: ["latin"] });
 
 const COLORS = [
   { name: "Black", value: "#000000" },
@@ -46,6 +59,15 @@ export default function Home() {
   const [showColorWheel, setShowColorWheel] = useState(false);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [urlError, setUrlError] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Manage QR states
+  const [manageShortId, setManageShortId] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [manageLoading, setManageLoading] = useState(false);
+  const [manageMessage, setManageMessage] = useState("");
+  const [qrInfo, setQrInfo] = useState<any>(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
@@ -175,6 +197,62 @@ export default function Home() {
     }
   }
 
+  const handleGetQRInfo = async () => {
+    if (!manageShortId) return;
+    
+    setManageLoading(true);
+    setManageMessage("");
+    try {
+      const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setQrInfo(data);
+      } else {
+        setManageMessage("QR code not found. Please check the short ID.");
+        setQrInfo(null);
+      }
+    } catch (err) {
+      setManageMessage("Error fetching QR code info.");
+      setQrInfo(null);
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
+  const handleUpdateDestination = async () => {
+    if (!manageShortId || !newUrl) return;
+    
+    setManageLoading(true);
+    setManageMessage("");
+    try {
+      const res = await fetch(`http://localhost:4000/api/qr/${manageShortId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destination_url: newUrl })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setManageMessage("Destination updated");
+        // Update the qrInfo with the new data so the "Current" field reflects the change
+        setQrInfo({
+          ...qrInfo,
+          originalUrl: newUrl
+        });
+        setNewUrl("");
+        setShowSuccessAnimation(true);
+        setTimeout(() => setShowSuccessAnimation(false), 3000);
+      } else {
+        const errorData = await res.json();
+        setManageMessage(`❌ Error: ${errorData.error}`);
+      }
+    } catch (err) {
+      setManageMessage("Error updating destination.");
+    } finally {
+      setManageLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#fafafa] font-sans">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 flex flex-col gap-6">
@@ -182,40 +260,29 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-left tracking-tight flex-1">QR Chameleon</h1>
           <button
             type="button"
-            onClick={() => window.location.href = '/manage'}
-            className="flex items-center justify-center gap-2 font-medium py-2 px-4 rounded-lg transition-all duration-200 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-black bg-gray-100 text-black hover:bg-gray-200 text-sm"
-            title="Manage your QR codes"
+            onClick={() => setDrawerOpen(true)}
+            className="flex gap-2 items-center justify-center p-2 rounded-lg transition-all duration-200 ease-out cursor-pointer text-gray-500 hover:text-black"
+            title="Manage QR codes"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
-              className="w-5 h-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-              />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.5 17.5L13.875 13.875M15.8333 9.16667C15.8333 12.8486 12.8486 15.8333 9.16667 15.8333C5.48477 15.8333 2.5 12.8486 2.5 9.16667C2.5 5.48477 5.48477 2.5 9.16667 2.5C12.8486 2.5 15.8333 5.48477 15.8333 9.16667Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-
+            Find QR
           </button>
         </div>
         <form className="flex flex-col gap-2.5" onSubmit={e => e.preventDefault()}>
-          <label className="font-medium text-gray-700 tracking-normal">Enter destination URL</label>
+          <label className="font-medium text-gray-700 tracking-normal">Enter URL</label>
           <input
             type="url"
-            className={`border rounded-lg px-3 py-2 focus:outline-none focus:ring-1 text-black bg-[#fafafa] ${urlError && (!url || !isValidUrl(url)) ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-black'}`}
+            className={`rounded-lg px-3 py-2 text-black focus:outline-none focus:ring-1 border ${
+              urlError && (!url || !isValidUrl(url))
+                ? 'border-red-500 focus:ring-red-500'
+                : 'border-neutral-200 focus:ring-black'
+            }`}
             placeholder="https://example.com"
             value={url}
             onChange={e => { setUrl(e.target.value); setUrlError(false); }}
+            onFocus={() => { if (urlError) setUrlError(false); }}
             required
             ref={urlInputRef}
           />
@@ -328,10 +395,10 @@ export default function Home() {
               <button
                 type="button"
                 key={f.value}
-                className={`w-full flex flex-col items-center justify-center w-20 h-16 rounded-xl border transition-all cursor-pointer ${
+                className={`w-full flex flex-col items-center justify-center w-20 h-16 rounded-xl border shadow-sm transition-all cursor-pointer ${
                   format === f.value
-                    ? 'border-black border bg-gray-100 shadow-[0_0_px_0_rgba(0,0,0,1)]'
-                    : 'border-gray-200 border bg-white shadow-none'
+                    ? 'border-black border border-1 shadow-[0_0_px_0_rgba(0,0,1,1)]'
+                    : 'border-neutral-200 border bg-white shadow-none'
                 }`}
                 onClick={() => setFormat(f.value as any)}
                 style={{
@@ -345,9 +412,9 @@ export default function Home() {
             ))}
           </div>
         </form>
-        <div className="bg-[#fafafa] rounded-xl p-4 flex flex-col items-center border border-gray-200 min-h-[180px] justify-center" style={{height: 180}}>
+        <div className="border border-dashed border-neutral-200 rounded-xl p-4 flex flex-col items-center min-h-[180px] justify-center" style={{height: 180}}>
           {loading ? (
-            <span className="text-gray-50">Generating...</span>
+            <span className="text-neutral-50">Generating...</span>
           ) : error ? (
             <motion.span
               className="text-red-500 text-lg flex items-center gap-2 justify-center"
@@ -396,7 +463,7 @@ export default function Home() {
                 />
               ) : (
                 !loading && !error && (
-                  <span className="text-gray-400 flex items-center justify-center h-full w-full text-center text-lg">QR code preview</span>
+                  <span className="text-neutral-400 flex items-center justify-center h-full w-full text-center text-lg">QR preview will appear here</span>
                 )
               )}
             </AnimatePresence>
@@ -406,7 +473,7 @@ export default function Home() {
           <motion.button
             type="button"
             onClick={handleCopyLink}
-            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer bg-gray-100 text-black hover:bg-gray-200"
+            className="flex-1 flex items-center justify-center gap-2 font-semibold py-3 rounded-xl transition-all duration-200 ease-out cursor-pointer bg-neutral-100 text-black hover:bg-neutral-200"
             style={{ minHeight: 48 }}
             // disabled={!shortId}
             title="Save this ID to update the destination later without regenerating the QR code"
@@ -484,6 +551,139 @@ export default function Home() {
         
         <a ref={downloadRef} style={{ display: 'none' }} />
       </div>
+
+      {/* Manage QR Drawer */}
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerContent className={`bg-white min-h-[55vh] ${inter.className}`}>
+          <div className="mx-auto w-full max-w-md">
+            <DrawerHeader>
+              <DrawerTitle className="text-2xl">Find QR</DrawerTitle>
+              <DrawerDescription className="text-neutral-500 text-base">Enter the ID you saved to change its destination link.</DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pb-0">
+              <div className="flex items-center w-full gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    className="w-full rounded-lg pl-4 pr-10 h-[42px] text-black focus:outline-neutral-950 border border-neutral-200 shadow-xs"
+                    placeholder="Find QR ID"
+                    value={manageShortId}
+                    onChange={e => { setManageShortId(e.target.value); setManageMessage(""); }}
+                    autoComplete="off"
+                  />
+                  {manageShortId && (
+                    <button
+                      type="button"
+                      className="absolute right-2 inset-y-0 flex items-center text-neutral-400 hover:text-black"
+                      onClick={() => { setManageShortId(""); setManageMessage(""); setQrInfo(null); }}
+                      tabIndex={-1}
+                      aria-label="Clear"
+                    >
+                      {/* X icon */}
+                      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="6" y1="6" x2="14" y2="14" />
+                        <line x1="14" y1="6" x2="6" y2="14" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                <motion.button
+                  type="button"
+                  onClick={handleGetQRInfo}
+                  disabled={manageLoading || !manageShortId}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-[85px] h-[42px] py-2 rounded-lg bg-neutral-100 text-black font-medium hover:bg-neutral-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {manageLoading ? "Loading..." : "Find"}
+                </motion.button>
+              </div>
+
+              {!qrInfo && manageMessage && (
+                <div className="w-full flex justify-center py-12 mt-8">
+                  <span className="text-neutral-500 flex items-center gap-2">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="text-neutral-500 w-[20px]"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M16 16C16 16 14.5 14 12 14C9.5 14 8 16 8 16M15 9H15.01M9 9H9.01M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM15.5 9C15.5 9.27614 15.2761 9.5 15 9.5C14.7239 9.5 14.5 9.27614 14.5 9C14.5 8.72386 14.7239 8.5 15 8.5C15.2761 8.5 15.5 8.72386 15.5 9ZM9.5 9C9.5 9.27614 9.27614 9.5 9 9.5C8.72386 9.5 8.5 9.27614 8.5 9C8.5 8.72386 8.72386 8.5 9 8.5C9.27614 8.5 9.5 8.72386 9.5 9Z"
+                        stroke="#737373"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    No results found
+                  </span>
+                </div>
+              )}
+
+              {qrInfo && (
+                <div className="space-y-3 mt-8 pt-4">
+                  
+                  
+                  <div>
+                    <div className="bg-neutral-50 rounded-lg">
+                      <div className="relative">
+                      <input
+                        type="url"
+                        className="w-full text-sm rounded-t-lg rounded-b-none px-3 py-1 text-neutral-500 bg-neutral-50 border border-transparent focus:outline-none"
+                        value={qrInfo.originalUrl}
+                        readOnly
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
+                        Current
+                      </span>
+                    </div>
+                    
+                    <input
+                      type="url"
+                      className="w-full rounded-lg px-3 py-4 text-black border border-neutral-200 focus:outline-neutral-950"
+                      placeholder="Enter new URL"
+                      value={newUrl}
+                      onChange={e => setNewUrl(e.target.value)}
+                    />
+                    </div>
+                    
+                    {showSuccessAnimation ? (
+                      <div className="mt-6 w-full h-[48px] bg-neutral-800 font-semibold text-white rounded-xl flex items-center justify-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75" />
+                          <circle cx="12" cy="12" r="9" />
+                        </svg>
+                        Destination updated
+                      </div>
+                    ) : (
+                      <motion.button
+                      whileTap={{ scale: 0.98 }}
+                        onClick={handleUpdateDestination}
+                        disabled={manageLoading || !newUrl}
+                        className="mt-6 w-full h-[48px] bg-black font-semibold text-white rounded-xl hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {manageLoading ? "Updating..." : "Update"}
+                      </motion.button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {manageMessage && qrInfo && !manageMessage.includes("Destination updated") && (
+                <div className={`p-3 rounded-lg ${
+                  manageMessage.includes("✅") ? "bg-green-100 text-green-800" : 
+                  manageMessage.includes("❌") ? "bg-red-100 text-red-800" : 
+                  "bg-transparent text-gray-800"
+                }`}>
+                  {manageMessage}
+                </div>
+              )}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
