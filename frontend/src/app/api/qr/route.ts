@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     });
     return res;
   } catch (err: any) {
+    console.error('QR API Error:', err);
     return NextResponse.json({ error: 'Failed to create QR code', details: err.message }, { status: 500 });
   }
 } 
