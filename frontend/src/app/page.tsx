@@ -414,7 +414,7 @@ export default function Home() {
         </form>
         <div className="border border-dashed border-neutral-200 rounded-xl p-4 flex flex-col items-center min-h-[180px] justify-center" style={{height: 180}}>
           {loading ? (
-            <span className="text-neutral-50">Generating...</span>
+            <span className="text-neutral-500 shimmer">Generating...</span>
           ) : error ? (
             <motion.span
               className="text-red-500 text-lg flex items-center gap-2 justify-center"
