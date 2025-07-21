@@ -206,11 +206,12 @@ export default function Home() {
       urlInputRef.current?.focus();
       return;
     }
-    console.log('Copying shortId:', shortId);
-    if (shortId) {
+    const finalShortId = shortId || (redirectUrl ? new URL(redirectUrl).pathname.split('/').pop() : null);
+    console.log('Copying shortId:', finalShortId);
+    if (finalShortId) {
       try {
-        await navigator.clipboard.writeText(shortId);
-        console.log('Successfully copied:', shortId);
+        await navigator.clipboard.writeText(finalShortId);
+        console.log('Successfully copied:', finalShortId);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       } catch (err) {
@@ -234,6 +235,7 @@ export default function Home() {
     if (!manageShortId) return;
     setFindLoading(true);
     setManageMessage("");
+    setQrInfo(null);
     try {
       const res = await fetch(`/api/qr/${manageShortId}`);
       if (res.ok) {
@@ -631,7 +633,13 @@ export default function Home() {
                 </motion.button>
               </div>
 
-              {!qrInfo && manageMessage && (
+              {findLoading && (
+                <div className="w-full flex justify-center py-12 mt-8">
+                  <span className="text-neutral-400 shimmer">Searching...</span>
+                </div>
+              )}
+
+              {!findLoading && !qrInfo && manageMessage && (
                 <div className="w-full flex justify-center py-12 mt-8">
                   <span className="text-neutral-500 flex items-center gap-2">
                     <svg
