@@ -15,23 +15,41 @@ function generateShortId(length = 8) {
 }
 
 export async function POST(req: NextRequest) {
-  const { destination_url, color, format } = await req.json();
+  const { destination_url, color, format, existingShortId } = await req.json();
+
   if (!destination_url) {
     return NextResponse.json({ error: 'destination_url is required' }, { status: 400 });
   }
+
   try {
-    const shortId = generateShortId(8);
+    let shortId = existingShortId;
+
+    if (shortId) {
+      // If a shortId is provided, update the existing QR code
+      await prisma.qRCode.update({
+        where: { shortId },
+        data: {
+          originalUrl: destination_url,
+          color: color || '#000000',
+          format: format || 'png',
+        },
+      });
+    } else {
+      // If no shortId is provided, create a new one
+      shortId = generateShortId(8);
+      await prisma.qRCode.create({
+        data: {
+          shortId,
+          originalUrl: destination_url,
+          color: color || '#000000',
+          format: format || 'png',
+        },
+      });
+    }
+
     const baseUrl = req.nextUrl.origin;
     const qrRedirectUrl = `${baseUrl}/api/qr/redirect/${shortId}`;
-    // Create QR code in database
-    await prisma.qRCode.create({
-      data: {
-        shortId,
-        originalUrl: destination_url,
-        color: color || '#000000',
-        format: format || 'png',
-      },
-    });
+    
     // Generate QR code image
     const qrOptions = {
       color: {

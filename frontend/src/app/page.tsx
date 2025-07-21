@@ -75,6 +75,7 @@ export default function Home() {
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
+  const debouncedColor = useDebounce(color, 200);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -129,16 +130,21 @@ export default function Home() {
         const res = await fetch("/api/qr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ destination_url: debouncedUrl, format, color }),
+          body: JSON.stringify({
+            destination_url: debouncedUrl,
+            format,
+            color: debouncedColor,
+            existingShortId: shortId
+          }),
         });
         if (!res.ok) throw new Error("Failed to generate QR code");
         
         // Get the short ID and redirect URL from response headers
-        const shortId = res.headers.get('X-Short-ID');
+        const newShortId = res.headers.get('X-Short-ID');
         const redirectUrl = res.headers.get('X-Redirect-URL');
         
         console.log('Response headers:', {
-          shortId,
+          shortId: newShortId,
           redirectUrl,
           allHeaders: Object.fromEntries(res.headers.entries())
         });
@@ -157,10 +163,12 @@ export default function Home() {
         }
         
         // Set the actual short ID and redirect URL from backend
-        setShortId(shortId);
+        if (newShortId) {
+          setShortId(newShortId);
+        }
         setRedirectUrl(redirectUrl);
         
-        console.log('Set shortId to:', shortId);
+        console.log('Set shortId to:', newShortId);
         
       } catch (err: any) {
         setError(err.message || "Something went wrong");
@@ -175,7 +183,7 @@ export default function Home() {
     };
     generateQR();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedUrl, color, format]);
+  }, [debouncedUrl, debouncedColor, format]);
 
   const handleDownload = () => {
     if (!url || !isValidUrl(url)) {

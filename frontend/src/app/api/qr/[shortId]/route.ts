@@ -34,14 +34,20 @@ export async function PUT(
 ) {
   const { shortId } = params;
   const { destination_url, color, format } = await req.json();
+
+  const dataToUpdate: { originalUrl?: string; color?: string; format?: string } = {};
+  if (destination_url) dataToUpdate.originalUrl = destination_url;
+  if (color) dataToUpdate.color = color;
+  if (format) dataToUpdate.format = format;
+
+  if (Object.keys(dataToUpdate).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+  }
+
   try {
     const qrCode = await prisma.qRCode.update({
       where: { shortId },
-      data: {
-        originalUrl: destination_url,
-        color: color || '#000000',
-        format: format || 'png',
-      },
+      data: dataToUpdate,
     });
     const baseUrl = req.nextUrl.origin;
     return NextResponse.json({
