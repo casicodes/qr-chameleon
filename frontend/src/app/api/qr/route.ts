@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'X-Short-ID': shortId,
+        'X-Short-ID': shortId!,
         'X-Redirect-URL': qrRedirectUrl,
       },
     });

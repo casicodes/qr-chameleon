@@ -72,7 +72,6 @@ export default function Home() {
   const [manageMessage, setManageMessage] = useState("");
   const [qrInfo, setQrInfo] = useState<any>(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-  const isCreatingRef = useRef(false);
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
@@ -128,16 +127,8 @@ export default function Home() {
 
       const isUpdate = !!shortId;
 
-      if (!isUpdate && isCreatingRef.current) {
-        return;
-      }
-
       setLoading(true);
       setError(null);
-
-      if (!isUpdate) {
-        isCreatingRef.current = true;
-      }
 
       try {
         const res = await fetch("/api/qr", {
@@ -192,9 +183,6 @@ export default function Home() {
         setShortId(null);
       } finally {
         setLoading(false);
-        if (!isUpdate) {
-          isCreatingRef.current = false;
-        }
       }
     };
     generateQR();
