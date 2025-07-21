@@ -35,16 +35,34 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // If no shortId is provided, create a new one
-      shortId = generateShortId(8);
-      await prisma.qRCode.create({
-        data: {
-          shortId,
-          originalUrl: destination_url,
-          color: color || '#000000',
-          format: format || 'png',
-        },
-      });
+      // If no shortId is provided, create a new one, with retry logic for collisions
+      let qrCode = null;
+      let attempts = 0;
+      while (attempts < 5 && !qrCode) {
+        try {
+          shortId = generateShortId(8);
+          qrCode = await prisma.qRCode.create({
+            data: {
+              shortId,
+              originalUrl: destination_url,
+              color: color || '#000000',
+              format: format || 'png',
+            },
+          });
+        } catch (e: any) {
+          if (e.code === 'P2002') {
+            // Unique constraint violation (collision), so we try again
+            attempts++;
+          } else {
+            // For any other error, we re-throw it
+            throw e;
+          }
+        }
+      }
+
+      if (!qrCode) {
+        return NextResponse.json({ error: 'Failed to create a unique QR code. Please try again.' }, { status: 500 });
+      }
     }
 
     const baseUrl = req.nextUrl.origin;
