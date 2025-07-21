@@ -72,6 +72,7 @@ export default function Home() {
   const [manageMessage, setManageMessage] = useState("");
   const [qrInfo, setQrInfo] = useState<any>(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const isCreatingRef = useRef(false);
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
@@ -127,8 +128,18 @@ export default function Home() {
 
       const isUpdate = !!shortId;
 
+      // Prevent sending a new creation request if one is already in flight.
+      if (!isUpdate && isCreatingRef.current) {
+        return;
+      }
+
       setLoading(true);
       setError(null);
+
+      // Lock to indicate a creation request is starting.
+      if (!isUpdate) {
+        isCreatingRef.current = true;
+      }
 
       try {
         const res = await fetch("/api/qr", {
@@ -183,11 +194,15 @@ export default function Home() {
         setShortId(null);
       } finally {
         setLoading(false);
+        // Unlock once the creation attempt is complete.
+        if (!isUpdate) {
+          isCreatingRef.current = false;
+        }
       }
     };
     generateQR();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedUrl, debouncedColor, format]);
+  }, [debouncedUrl, debouncedColor, format, shortId]);
 
   const handleDownload = () => {
     if (!url || !isValidUrl(url)) {
