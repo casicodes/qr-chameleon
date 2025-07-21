@@ -57,6 +57,8 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const downloadRef = useRef<HTMLAnchorElement>(null);
   const [showColorWheel, setShowColorWheel] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const colorPickerToggleRef = useRef<HTMLButtonElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [urlError, setUrlError] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -73,6 +75,27 @@ export default function Home() {
 
   // Debounce URL input to avoid spamming backend
   const debouncedUrl = useDebounce(url, 400);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        colorPickerRef.current &&
+        !colorPickerRef.current.contains(event.target as Node) &&
+        colorPickerToggleRef.current &&
+        !colorPickerToggleRef.current.contains(event.target as Node)
+      ) {
+        setShowColorWheel(false);
+      }
+    };
+
+    if (showColorWheel) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showColorWheel]);
 
   useEffect(() => {
     const generateQR = async () => {
@@ -316,6 +339,7 @@ export default function Home() {
             {/* Custom color wheel picker */}
             <div className="relative flex items-center justify-center">
               <button
+                ref={colorPickerToggleRef}
                 type="button"
                 className={`h-12 w-12 flex items-center justify-center transition-all cursor-pointer bg-transparent p-0 border-none`}
                 aria-label="Custom color"
@@ -359,7 +383,7 @@ export default function Home() {
                 )}
               </button>
               {showColorWheel && (
-                <div className="absolute z-50 top-12 left-1/2 -translate-x-1/2 bg-white p-3 rounded-xl shadow-lg border border-black/5 flex flex-col items-center min-w-[220px] w-64">
+                <div ref={colorPickerRef} className="absolute z-50 top-12 left-1/2 -translate-x-1/2 bg-white p-3 rounded-xl shadow-lg border border-black/5 flex flex-col items-center min-w-[220px] w-64">
                   <HexColorPicker
                     color={customColor || "#000000"}
                     onChange={c => {
@@ -379,12 +403,13 @@ export default function Home() {
                     }}
                     maxLength={7}
                   />
-                  <button
-                    className="w-full mt-1 px-3 py-2 bg-black text-white rounded-lg font-semibold text-base hover:bg-neutral-800 transition-all cursor-pointer"
+                  <motion.button
+                    className="w-full mt-1 px-3 py-2 bg-neutral-100 text-black rounded-lg font-semibold text-base hover:bg-neutral-200 transition-all cursor-pointer"
                     onClick={() => setShowColorWheel(false)}
+                    whileTap={{ scale: 0.98 }}
                   >
                     Done
-                  </button>
+                  </motion.button>
                 </div>
               )}
             </div>
