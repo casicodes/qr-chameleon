@@ -7,6 +7,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   title: "QR chameleon",
   description: "Generate dyamic qr codes within few seconds",
+  icons: {
+    icon: [
+      { url: '/fav.png?v=' + Date.now(), sizes: '32x32', type: 'image/png' },
+    ],
+  },
 };
 
 export default function RootLayout({
